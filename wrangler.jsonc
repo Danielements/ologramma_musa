@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "ologramma-musa",
+  "name": "ologrammamusa",
   "account_id": "6e7831a844d758c90f1f3e45e4e7f84b",
   "compatibility_date": "2026-05-10",
   "workers_dev": true,
