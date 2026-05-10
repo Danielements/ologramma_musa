@@ -429,6 +429,8 @@ const THINKING_BACKDROP_COLORS = [
   new THREE.Color("#5c86d8"),
   new THREE.Color("#7864c8"),
 ];
+const explanationAudio = new Audio("/audio.mp3.mpeg");
+explanationAudio.preload = "auto";
 
 function logExperience(eventName, details = {}) {
   console.log(`[MUSA] ${eventName}`, {
@@ -889,6 +891,20 @@ function clearSequenceTimers() {
   sequenceTimers = [];
 }
 
+function playExplanationAudio() {
+  explanationAudio.currentTime = 0;
+  explanationAudio.play().catch((error) => {
+    console.warn("Impossibile avviare l'audio della spiegazione:", error);
+  });
+}
+
+function stopExplanationAudio({ reset = false } = {}) {
+  explanationAudio.pause();
+  if (reset) {
+    explanationAudio.currentTime = 0;
+  }
+}
+
 function normalizeSpeechSequence(sequence = EXPERIENCE_CONFIG.content.speechSequence) {
   const fallback = DEFAULT_SPEECH_SEQUENCE.map((item) => ({ ...item }));
   const normalized = (Array.isArray(sequence) ? sequence : fallback)
@@ -1234,6 +1250,7 @@ function getAnimationDurationMs(slot) {
 async function startExperience() {
   logExperience("startExperience");
   clearSequenceTimers();
+  stopExplanationAudio({ reset: true });
   currentMode = "speaking";
   applySceneLayoutStyles();
   discoverButton.classList.add("is-hidden");
@@ -1245,6 +1262,7 @@ async function startExperience() {
   const speechSequence = normalizeSpeechSequence();
 
   await setAvatarPhase("speaking", { loop: false });
+  playExplanationAudio();
   speechLabel.textContent = "";
 
   speechSequence.forEach((entry) => {
@@ -1287,6 +1305,7 @@ async function triggerPonderPhase() {
   }
 
   clearSequenceTimers();
+  stopExplanationAudio({ reset: true });
   currentMode = "ponder";
   ponderStartedAt = performance.now();
   logExperience("enterPonderPhase");
@@ -1316,6 +1335,7 @@ async function triggerFinalPhase() {
   }
 
   clearSequenceTimers();
+  stopExplanationAudio({ reset: true });
   currentMode = "final";
   logExperience("enterFinalPhase");
   applySceneLayoutStyles();
@@ -1347,6 +1367,7 @@ async function triggerFinalPhase() {
 async function resetExperience() {
   logExperience("resetExperience");
   clearSequenceTimers();
+  stopExplanationAudio({ reset: true });
   currentMode = "idle";
   applySceneLayoutStyles();
   speechLabel.textContent = EXPERIENCE_CONFIG.content.speechText;
