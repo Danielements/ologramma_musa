@@ -17,17 +17,9 @@ const editorToggle = document.querySelector("#editorToggle");
 const editorSceneTarget = document.querySelector("#editorSceneTarget");
 const editorCtaText = document.querySelector("#editorCtaText");
 const editorSpeechText1 = document.querySelector("#editorSpeechText1");
-const editorSpeechStart1 = document.querySelector("#editorSpeechStart1");
-const editorSpeechEnd1 = document.querySelector("#editorSpeechEnd1");
 const editorSpeechText2 = document.querySelector("#editorSpeechText2");
-const editorSpeechStart2 = document.querySelector("#editorSpeechStart2");
-const editorSpeechEnd2 = document.querySelector("#editorSpeechEnd2");
 const editorSpeechText3 = document.querySelector("#editorSpeechText3");
-const editorSpeechStart3 = document.querySelector("#editorSpeechStart3");
-const editorSpeechEnd3 = document.querySelector("#editorSpeechEnd3");
 const editorSpeechText4 = document.querySelector("#editorSpeechText4");
-const editorSpeechStart4 = document.querySelector("#editorSpeechStart4");
-const editorSpeechEnd4 = document.querySelector("#editorSpeechEnd4");
 const editorSpeechSize = document.querySelector("#editorSpeechSize");
 const editorSpeechWidth = document.querySelector("#editorSpeechWidth");
 const editorEmbedWidth = document.querySelector("#editorEmbedWidth");
@@ -42,6 +34,9 @@ const editorResultY = document.querySelector("#editorResultY");
 const editorSpeechX = document.querySelector("#editorSpeechX");
 const editorSpeechY = document.querySelector("#editorSpeechY");
 const editorAvatarX = document.querySelector("#editorAvatarX");
+const editorLogoY = document.querySelector("#editorLogoY");
+const editorLogoZ = document.querySelector("#editorLogoZ");
+const editorLogoScale = document.querySelector("#editorLogoScale");
 const editorBgColor = document.querySelector("#editorBgColor");
 const editorGradientPreset = document.querySelector("#editorGradientPreset");
 const editorSideShadowOpacity = document.querySelector("#editorSideShadowOpacity");
@@ -78,28 +73,20 @@ const DEFAULT_SPEECH_SEQUENCE = [
   {
     text: `Parto sempre da una domanda.
 Poi un'altra. E un'altra ancora.`,
-    startMs: 0,
-    endMs: 3000,
   },
   {
     text: `E quando rispondi,
 non stai scegliendo un libro.`,
-    startMs: 3000,
-    endMs: 6000,
   },
   {
     text: `Mi stai dando gli elementi
 per conoscerti meglio.`,
-    startMs: 6000,
-    endMs: 9000,
   },
   {
     text: `In questo modo
 posso consigliarti davvero
 il libro giusto per te
 in questo momento`,
-    startMs: 9000,
-    endMs: 12800,
   },
 ];
 const DEFAULT_SPEECH_TEXT = DEFAULT_SPEECH_SEQUENCE.map((item) => item.text).join("\n\n");
@@ -129,7 +116,7 @@ const EXPERIENCE_CONFIG = {
   },
   timings: {
     speechFadeMs: 2200,
-    embedHoldMs: 0,
+    embedHoldMs: 1500,
     ponderMinMs: 1200,
     finalRevealDelayMs: 400,
   },
@@ -178,6 +165,9 @@ const EXPERIENCE_CONFIG = {
     bookDepth: 0,
     bookDensity: 1,
     bookScale: 1,
+    logoY: -0.28,
+    logoZ: 1.48,
+    logoScale: 1.45,
     topGlowOpacity: 0,
     vignetteOpacity: 0.12,
     focusHaloOpacity: 0.08,
@@ -393,6 +383,9 @@ scene.add(contactShadow);
 const avatarGroup = new THREE.Group();
 scene.add(avatarGroup);
 
+const musaLogoGroup = new THREE.Group();
+scene.add(musaLogoGroup);
+
 const maskCloudGroup = new THREE.Group();
 scene.add(maskCloudGroup);
 
@@ -412,9 +405,12 @@ let sequenceTimers = [];
 const avatarCloudWrappers = [];
 const bookWrappers = [];
 const airplaneWrappers = [];
+let musaLogoWrapper = null;
+let musaLogoBaseScale = 1;
 let activeAvatarBaseScale = 1;
 let editorSceneKey = "idle";
 let ponderStartedAt = 0;
+let explanationAudioEndedHandler = null;
 let animationMetadata = {
   idle: { durationMs: 6000, name: null },
   speaking: { durationMs: 13000, name: null },
@@ -429,8 +425,15 @@ const THINKING_BACKDROP_COLORS = [
   new THREE.Color("#5c86d8"),
   new THREE.Color("#7864c8"),
 ];
-const explanationAudio = new Audio("/audio.mp3.mpeg");
+const explanationAudio = new Audio("/audio.mp3");
 explanationAudio.preload = "auto";
+explanationAudio.load();
+const speechSegmentAudios = ["/1.mp3", "/2.mp3", "/3.mp3", "/4.mp3"].map((path) => {
+  const audio = new Audio(path);
+  audio.preload = "auto";
+  audio.load();
+  return audio;
+});
 
 function logExperience(eventName, details = {}) {
   console.log(`[MUSA] ${eventName}`, {
@@ -459,10 +462,6 @@ loadDecorModel("/models/cartoon_cloud.glb", {
   shadow: true,
   zFloatRotation: false,
   tint: 0xf8fbff,
-  tintShift: {
-    speed: 0.35,
-    colors: [0xf8fbff, 0xf4f8ff, 0xfffbf7],
-  },
 });
 
 loadDecorModel("/models/cartoon_cloud.glb", {
@@ -476,10 +475,6 @@ loadDecorModel("/models/cartoon_cloud.glb", {
   shadow: true,
   zFloatRotation: false,
   tint: 0xf7fbff,
-  tintShift: {
-    speed: 0.42,
-    colors: [0xf7fbff, 0xf5f8ff, 0xfffaf6],
-  },
 });
 
 loadDecorModel("/models/cartoon_cloud.glb", {
@@ -493,10 +488,6 @@ loadDecorModel("/models/cartoon_cloud.glb", {
   shadow: true,
   zFloatRotation: false,
   tint: 0xfcfdff,
-  tintShift: {
-    speed: 0.38,
-    colors: [0xfcfdff, 0xf7fbff, 0xfffcf8],
-  },
 });
 
 loadDecorModel("/models/book.glb", {
@@ -609,7 +600,7 @@ loadDecorModel("/models/books.glb", {
 
 loadDecorModel("/models/cartoon_cloud.glb", {
   parent: propsOrbit,
-  position: [-1.15, 1.96, -1.9],
+  position: [-1.15, 2.28, -1.9],
   rotation: [0.02, -0.25, 0.04],
   scale: 0.22,
   floatOffset: 0.08,
@@ -622,7 +613,7 @@ loadDecorModel("/models/cartoon_cloud.glb", {
 
 loadDecorModel("/models/cartoon_cloud.glb", {
   parent: propsOrbit,
-  position: [0.08, 2.1, -2.15],
+  position: [0.08, 2.42, -2.15],
   rotation: [-0.03, 0.35, -0.05],
   scale: 0.24,
   floatOffset: 0.06,
@@ -635,7 +626,7 @@ loadDecorModel("/models/cartoon_cloud.glb", {
 
 loadDecorModel("/models/cartoon_cloud.glb", {
   parent: propsOrbit,
-  position: [1.24, 1.88, -1.8],
+  position: [1.24, 2.22, -1.8],
   rotation: [0.04, -0.1, 0.03],
   scale: 0.21,
   floatOffset: 0.07,
@@ -648,7 +639,7 @@ loadDecorModel("/models/cartoon_cloud.glb", {
 
 loadDecorModel("/models/cartoon_cloud.glb", {
   parent: propsOrbit,
-  position: [-0.38, 1.82, -1.98],
+  position: [-0.38, 2.14, -1.98],
   rotation: [0.03, 0.16, -0.02],
   scale: 0.2,
   floatOffset: 0.06,
@@ -661,7 +652,7 @@ loadDecorModel("/models/cartoon_cloud.glb", {
 
 loadDecorModel("/models/cartoon_cloud.glb", {
   parent: propsOrbit,
-  position: [0.54, 1.92, -2.02],
+  position: [0.54, 2.26, -2.02],
   rotation: [-0.02, -0.18, 0.03],
   scale: 0.22,
   floatOffset: 0.07,
@@ -670,6 +661,30 @@ loadDecorModel("/models/cartoon_cloud.glb", {
   shadow: true,
   zFloatRotation: false,
   tint: 0xfcfdff,
+});
+
+loadDecorModel("/models/book.glb", {
+  parent: propsOrbit,
+  position: [-0.72, 2.08, -2.08],
+  rotation: [0.18, 0.36, -0.08],
+  scale: 0.5,
+  floatOffset: 0.06,
+  floatSpeed: 0.52,
+  orbitSpeed: 0.1,
+  shadow: true,
+  tint: 0xf0a14b,
+});
+
+loadDecorModel("/models/book.glb", {
+  parent: propsOrbit,
+  position: [0.88, 2.18, -2.2],
+  rotation: [-0.12, -0.28, 0.06],
+  scale: 0.48,
+  floatOffset: 0.05,
+  floatSpeed: 0.48,
+  orbitSpeed: -0.08,
+  shadow: true,
+  tint: 0x79c2ff,
 });
 
 loadDecorModel("/models/airplane.glb", {
@@ -695,6 +710,8 @@ loadDecorModel("/models/airplane.glb", {
   shadow: true,
   tint: 0xffffff,
 });
+
+loadMusaLogoModel();
 
 initializeEditorRangeValues();
 applyExperienceConfig();
@@ -739,6 +756,7 @@ function animate() {
   updateBookStorm(clock.elapsedTime);
   updateAirplanes(clock.elapsedTime);
   updateThinkingBackdrop(clock.elapsedTime);
+  updateMusaLogo(clock.elapsedTime);
 
   renderer.render(scene, camera);
 }
@@ -881,6 +899,54 @@ function loadDecorModel(
   );
 }
 
+function loadMusaLogoModel() {
+  loader.load(
+    "/models/musalogo.glb",
+    (gltf) => {
+      const wrapper = new THREE.Group();
+      const asset = gltf.scene;
+
+      asset.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = false;
+          if (child.material) {
+            child.material = child.material.clone();
+            if ("roughness" in child.material) {
+              child.material.roughness = Math.min(0.82, child.material.roughness ?? 0.82);
+            }
+            if ("metalness" in child.material) {
+              child.material.metalness = Math.max(0.02, child.material.metalness ?? 0.02);
+            }
+            if ("emissive" in child.material && child.material.color) {
+              child.material.emissive.copy(child.material.color).multiplyScalar(0.18);
+              child.material.emissiveIntensity = 0.45;
+            }
+          }
+        }
+      });
+
+      const box = new THREE.Box3().setFromObject(asset);
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      box.getCenter(center);
+      box.getSize(size);
+
+      asset.position.sub(center);
+      musaLogoBaseScale = Math.max(0.001, 1.65 / Math.max(size.x, size.y, size.z));
+      asset.scale.setScalar(musaLogoBaseScale);
+      wrapper.add(asset);
+      musaLogoGroup.add(wrapper);
+      musaLogoWrapper = wrapper;
+      applyVisualConfig();
+    },
+    undefined,
+    (error) => {
+      console.error("Errore caricamento logo MUSA:", error);
+    }
+  );
+}
+
 function queueTimeout(callback, delay) {
   const timeoutId = window.setTimeout(callback, delay);
   sequenceTimers.push(timeoutId);
@@ -898,11 +964,41 @@ function playExplanationAudio() {
   });
 }
 
+function clearExplanationAudioEndedHandler() {
+  if (explanationAudioEndedHandler) {
+    explanationAudio.removeEventListener("ended", explanationAudioEndedHandler);
+    explanationAudioEndedHandler = null;
+  }
+}
+
 function stopExplanationAudio({ reset = false } = {}) {
+  clearExplanationAudioEndedHandler();
   explanationAudio.pause();
   if (reset) {
     explanationAudio.currentTime = 0;
   }
+}
+
+function getExplanationDurationMs() {
+  return Number.isFinite(explanationAudio.duration) && explanationAudio.duration > 0
+    ? Math.round(explanationAudio.duration * 1000)
+    : 0;
+}
+
+function getAudioDurationMs(audio) {
+  return Number.isFinite(audio?.duration) && audio.duration > 0
+    ? Math.round(audio.duration * 1000)
+    : 0;
+}
+
+function getSpeechSegmentDurationsMs() {
+  const fallbackSequence = DEFAULT_SPEECH_SEQUENCE;
+  const fallbackDuration = Math.max(1000, Math.round(getExplanationDurationMs() / fallbackSequence.length) || 3000);
+
+  return fallbackSequence.map((_item, index) => {
+    const durationMs = getAudioDurationMs(speechSegmentAudios[index]);
+    return durationMs > 0 ? durationMs : fallbackDuration;
+  });
 }
 
 function normalizeSpeechSequence(sequence = EXPERIENCE_CONFIG.content.speechSequence) {
@@ -911,8 +1007,6 @@ function normalizeSpeechSequence(sequence = EXPERIENCE_CONFIG.content.speechSequ
     .slice(0, 4)
     .map((item, index) => ({
       text: String(item?.text || fallback[index]?.text || "").trim(),
-      startMs: Math.max(0, Number(item?.startMs ?? fallback[index]?.startMs ?? 0) || 0),
-      endMs: Math.max(0, Number(item?.endMs ?? fallback[index]?.endMs ?? 0) || 0),
     }));
 
   while (normalized.length < 4) {
@@ -920,10 +1014,39 @@ function normalizeSpeechSequence(sequence = EXPERIENCE_CONFIG.content.speechSequ
     normalized.push({ ...fallbackItem });
   }
 
-  return normalized.map((item) => ({
-    ...item,
-    endMs: Math.max(item.endMs, item.startMs + 100),
-  }));
+  return normalized;
+}
+
+function buildSpeechTimeline(totalDurationMs) {
+  const sequence = normalizeSpeechSequence();
+  const segmentDurations = getSpeechSegmentDurationsMs();
+  const timeline = [];
+  let cursorMs = 0;
+
+  sequence.forEach((entry, index) => {
+    const durationMs = Math.max(100, segmentDurations[index] || 1000);
+    const startMs = cursorMs;
+    const unclampedEndMs = startMs + durationMs;
+    const endMs = index === sequence.length - 1
+      ? Math.max(startMs + 100, totalDurationMs)
+      : Math.min(unclampedEndMs, totalDurationMs);
+    const fadeStartMs = Math.max(
+      startMs + 200,
+      endMs - Math.min(EXPERIENCE_CONFIG.timings.speechFadeMs, Math.max(200, endMs - startMs))
+    );
+
+    timeline.push({
+      ...entry,
+      startMs,
+      durationMs: Math.max(100, endMs - startMs),
+      endMs,
+      fadeStartMs,
+    });
+
+    cursorMs = unclampedEndMs;
+  });
+
+  return timeline;
 }
 
 function getSceneLayout(sceneKey = currentMode) {
@@ -1259,43 +1382,79 @@ async function startExperience() {
   hideEmbed();
 
   const speakingDuration = getAnimationDurationMs("speaking");
-  const speechSequence = normalizeSpeechSequence();
-
-  await setAvatarPhase("speaking", { loop: false });
-  playExplanationAudio();
-  speechLabel.textContent = "";
-
-  speechSequence.forEach((entry) => {
-    queueTimeout(() => {
-      speechStage.classList.remove("is-fading");
-      speechLabel.textContent = entry.text;
-      showSpeech();
-    }, Math.min(entry.startMs, speakingDuration));
-
-    queueTimeout(() => {
-      if (speechLabel.textContent === entry.text) {
-        hideSpeech();
-      }
-    }, Math.min(entry.endMs, speakingDuration));
-  });
-
-  const speechFadeStart = Math.max(
-    400,
-    speakingDuration - EXPERIENCE_CONFIG.timings.speechFadeMs
+  const segmentedSpeechDuration = getSpeechSegmentDurationsMs()
+    .reduce((total, value) => total + value, 0);
+  const explanationDuration = Math.max(
+    speakingDuration,
+    getExplanationDurationMs(),
+    segmentedSpeechDuration
+  );
+  const speechTimeline = buildSpeechTimeline(explanationDuration);
+  const lastSpeechEntry = speechTimeline[speechTimeline.length - 1];
+  let speakingPhaseCompleted = false;
+  const speechTransitionMs = Math.min(
+    450,
+    Math.max(180, Math.round(EXPERIENCE_CONFIG.timings.speechFadeMs * 0.2))
   );
 
-  queueTimeout(() => {
-    speechStage.classList.add("is-fading");
-  }, speechFadeStart);
+  const finishSpeakingPhase = async () => {
+    if (speakingPhaseCompleted || currentMode !== "speaking") {
+      return;
+    }
 
-  queueTimeout(async () => {
+    speakingPhaseCompleted = true;
+    clearExplanationAudioEndedHandler();
     currentMode = "game";
     logExperience("enterGamePhase");
     applySceneLayoutStyles();
     hideSpeech();
     showEmbed({ forceReload: true, resultMode: false });
     await setAvatarPhase("idle", { loop: true });
-  }, speakingDuration);
+  };
+
+  await setAvatarPhase("speaking", { loop: false });
+  playExplanationAudio();
+  speechLabel.textContent = "";
+
+  speechTimeline.forEach((entry) => {
+    const nextEntry = speechTimeline[speechTimeline.indexOf(entry) + 1];
+
+    queueTimeout(() => {
+      speechStage.classList.remove("is-fading");
+      speechLabel.textContent = entry.text;
+      showSpeech();
+    }, entry.startMs);
+
+    if (nextEntry) {
+      queueTimeout(() => {
+        if (speechLabel.textContent === entry.text) {
+          speechStage.classList.add("is-fading");
+        }
+      }, Math.max(entry.startMs, nextEntry.startMs - speechTransitionMs));
+    }
+  });
+
+  explanationAudioEndedHandler = () => {
+    if (speechLabel.textContent === lastSpeechEntry?.text) {
+      speechStage.classList.add("is-fading");
+      queueTimeout(() => {
+        if (speechLabel.textContent === lastSpeechEntry?.text) {
+          hideSpeech();
+        }
+      }, speechTransitionMs);
+    }
+    queueTimeout(() => {
+      finishSpeakingPhase();
+    }, EXPERIENCE_CONFIG.timings.embedHoldMs);
+  };
+  explanationAudio.addEventListener("ended", explanationAudioEndedHandler, { once: true });
+
+  queueTimeout(() => {
+    if (speechLabel.textContent === lastSpeechEntry?.text) {
+      hideSpeech();
+    }
+    finishSpeakingPhase();
+  }, explanationDuration + EXPERIENCE_CONFIG.timings.embedHoldMs + 250);
 }
 
 async function triggerPonderPhase() {
@@ -1551,17 +1710,9 @@ function applyExperienceConfig() {
 
   editorCtaText.value = EXPERIENCE_CONFIG.content.ctaText;
   editorSpeechText1.value = speechSequence[0]?.text || "";
-  editorSpeechStart1.value = speechSequence[0]?.startMs ?? 0;
-  editorSpeechEnd1.value = speechSequence[0]?.endMs ?? 0;
   editorSpeechText2.value = speechSequence[1]?.text || "";
-  editorSpeechStart2.value = speechSequence[1]?.startMs ?? 0;
-  editorSpeechEnd2.value = speechSequence[1]?.endMs ?? 0;
   editorSpeechText3.value = speechSequence[2]?.text || "";
-  editorSpeechStart3.value = speechSequence[2]?.startMs ?? 0;
-  editorSpeechEnd3.value = speechSequence[2]?.endMs ?? 0;
   editorSpeechText4.value = speechSequence[3]?.text || "";
-  editorSpeechStart4.value = speechSequence[3]?.startMs ?? 0;
-  editorSpeechEnd4.value = speechSequence[3]?.endMs ?? 0;
   editorSpeechSize.value = EXPERIENCE_CONFIG.styles.speechFontSize;
   editorSpeechWidth.value = EXPERIENCE_CONFIG.styles.speechMaxWidth;
   editorEmbedWidth.value = EXPERIENCE_CONFIG.styles.embedWidth;
@@ -1584,6 +1735,9 @@ function applyExperienceConfig() {
   editorBookDepth.value = EXPERIENCE_CONFIG.visuals.bookDepth;
   editorBookDensity.value = EXPERIENCE_CONFIG.visuals.bookDensity;
   editorBookScale.value = EXPERIENCE_CONFIG.visuals.bookScale;
+  editorLogoY.value = EXPERIENCE_CONFIG.visuals.logoY;
+  editorLogoZ.value = EXPERIENCE_CONFIG.visuals.logoZ;
+  editorLogoScale.value = EXPERIENCE_CONFIG.visuals.logoScale;
   editorTopGlowOpacity.value = EXPERIENCE_CONFIG.visuals.topGlowOpacity;
   editorVignetteOpacity.value = EXPERIENCE_CONFIG.visuals.vignetteOpacity;
   editorFocusHaloOpacity.value = EXPERIENCE_CONFIG.visuals.focusHaloOpacity;
@@ -1664,32 +1818,8 @@ function bindEditor() {
     persistExperienceConfig();
   });
 
-  editorSpeechStart1.addEventListener("input", () => {
-    updateSpeechSequenceEntry(0, { startMs: Number(editorSpeechStart1.value) || 0 });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
-  editorSpeechEnd1.addEventListener("input", () => {
-    updateSpeechSequenceEntry(0, { endMs: Number(editorSpeechEnd1.value) || 0 });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
   editorSpeechText2.addEventListener("input", () => {
     updateSpeechSequenceEntry(1, { text: editorSpeechText2.value });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
-  editorSpeechStart2.addEventListener("input", () => {
-    updateSpeechSequenceEntry(1, { startMs: Number(editorSpeechStart2.value) || 0 });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
-  editorSpeechEnd2.addEventListener("input", () => {
-    updateSpeechSequenceEntry(1, { endMs: Number(editorSpeechEnd2.value) || 0 });
     applyExperienceConfig();
     persistExperienceConfig();
   });
@@ -1700,32 +1830,8 @@ function bindEditor() {
     persistExperienceConfig();
   });
 
-  editorSpeechStart3.addEventListener("input", () => {
-    updateSpeechSequenceEntry(2, { startMs: Number(editorSpeechStart3.value) || 0 });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
-  editorSpeechEnd3.addEventListener("input", () => {
-    updateSpeechSequenceEntry(2, { endMs: Number(editorSpeechEnd3.value) || 0 });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
   editorSpeechText4.addEventListener("input", () => {
     updateSpeechSequenceEntry(3, { text: editorSpeechText4.value });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
-  editorSpeechStart4.addEventListener("input", () => {
-    updateSpeechSequenceEntry(3, { startMs: Number(editorSpeechStart4.value) || 0 });
-    applyExperienceConfig();
-    persistExperienceConfig();
-  });
-
-  editorSpeechEnd4.addEventListener("input", () => {
-    updateSpeechSequenceEntry(3, { endMs: Number(editorSpeechEnd4.value) || 0 });
     applyExperienceConfig();
     persistExperienceConfig();
   });
@@ -1927,6 +2033,30 @@ function bindEditor() {
     persistExperienceConfig();
   });
 
+  editorLogoY.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.visuals.logoY = Number.isFinite(Number(editorLogoY.value))
+      ? Number(editorLogoY.value)
+      : -0.28;
+    applyVisualConfig();
+    persistExperienceConfig();
+  });
+
+  editorLogoZ.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.visuals.logoZ = Number.isFinite(Number(editorLogoZ.value))
+      ? Number(editorLogoZ.value)
+      : 1.48;
+    applyVisualConfig();
+    persistExperienceConfig();
+  });
+
+  editorLogoScale.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.visuals.logoScale = Number.isFinite(Number(editorLogoScale.value))
+      ? Number(editorLogoScale.value)
+      : 1.45;
+    applyVisualConfig();
+    persistExperienceConfig();
+  });
+
   editorTopGlowOpacity.addEventListener("input", () => {
     EXPERIENCE_CONFIG.visuals.topGlowOpacity = Number(editorTopGlowOpacity.value) || 0;
     applyVisualConfig();
@@ -2090,6 +2220,7 @@ function applyVisualConfig() {
   applyAvatarVisualOverrides(activeAvatarModel);
   applyCloudMaskVisuals();
   applyBookVisuals();
+  applyMusaLogoVisuals();
 }
 
 function getGradientPalette(preset, baseColor) {
@@ -2235,6 +2366,31 @@ function applyBookVisuals() {
     entry.wrapper.position.z = baseZ + depthOffset;
     entry.wrapper.scale.setScalar(entry.baseScale * (0.88 + densityScale * 0.12) * bookScale);
   });
+}
+
+function applyMusaLogoVisuals() {
+  if (!musaLogoWrapper) {
+    return;
+  }
+
+  musaLogoGroup.position.set(0, EXPERIENCE_CONFIG.visuals.logoY, EXPERIENCE_CONFIG.visuals.logoZ);
+  musaLogoWrapper.scale.setScalar(musaLogoBaseScale * EXPERIENCE_CONFIG.visuals.logoScale);
+  musaLogoWrapper.renderOrder = 6;
+  musaLogoWrapper.traverse((child) => {
+    if (child.isMesh) {
+      child.renderOrder = 6;
+    }
+  });
+}
+
+function updateMusaLogo(elapsedTime) {
+  if (!musaLogoWrapper) {
+    return;
+  }
+
+  musaLogoGroup.position.y =
+    EXPERIENCE_CONFIG.visuals.logoY + Math.sin(elapsedTime * 0.75) * 0.035;
+  musaLogoWrapper.rotation.z = Math.sin(elapsedTime * 0.6) * 0.06;
 }
 
 function updateBookStorm(elapsedTime) {
