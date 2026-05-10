@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Horygon Interface</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div id="app">
+      <div class="stage-shell">
+      <section class="hero">
+        <canvas id="scene"></canvas>
+
+        <div class="top-glow"></div>
+        <div class="depth-vignette"></div>
+        <div class="focus-halo"></div>
+        <div class="side-shadow side-shadow-right"></div>
+        <div class="side-shadow side-shadow-floor"></div>
+
+        <div class="experience-ui">
+          <button id="discoverButton" class="discover-button">
+            Scopri che libro sei oggi
+          </button>
+
+          <div id="speechStage" class="speech-stage" aria-live="polite">
+            <div class="speech-bubble">
+              <p id="speechLabel"></p>
+            </div>
+          </div>
+
+          <div id="embedStage" class="embed-stage">
+            <div class="embed-frame">
+              <div id="embedContent" class="embed-content"></div>
+            </div>
+          </div>
+
+          <div id="resultStage" class="result-stage">
+            <div class="result-card">
+              <p class="result-card__eyebrow">MUSA</p>
+              <h3 class="result-card__title">Il tuo risultato è pronto</h3>
+              <p class="result-card__body">
+                Qui comparirà il libro consigliato al termine della fase finale.
+              </p>
+            </div>
+          </div>
+
+          <div id="resultActions" class="result-actions">
+            <button id="restartButton" class="result-button" type="button">
+              Ricomincia
+            </button>
+          </div>
+        </div>
+
+        <button id="editorToggle" class="editor-toggle" aria-label="Apri editor">
+          edit
+        </button>
+
+        <aside id="editorPanel" class="editor-panel">
+          <h2>Editor scena</h2>
+          <label class="editor-field">
+            <span>Scena da modificare</span>
+            <select id="editorSceneTarget">
+              <option value="idle">Attesa</option>
+              <option value="speaking">Spiegazione</option>
+              <option value="game">Gioco in corso</option>
+              <option value="ponder">Attesa risultato</option>
+              <option value="finale">Risultato finale</option>
+            </select>
+          </label>
+          <p class="editor-section-title">Contenuti</p>
+          <label class="editor-field">
+            <span>Testo bottone</span>
+            <input id="editorCtaText" type="text" />
+          </label>
+          <p class="editor-section-title">Tempi</p>
+          <label class="editor-field">
+            <span>Durata clip parlato (ms)</span>
+            <input id="editorDiscoveryMs" type="number" min="1000" max="30000" step="500" readonly />
+          </label>
+          <label class="editor-field">
+            <span>Fade label (ms)</span>
+            <input id="editorSpeechFadeMs" type="number" min="300" max="8000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Pausa extra embed (ms)</span>
+            <input id="editorEmbedMs" type="number" min="1000" max="30000" step="500" />
+          </label>
+          <p class="editor-section-title">Label Parlato</p>
+          <label class="editor-field">
+            <span>Frase 1</span>
+            <textarea id="editorSpeechText1" rows="3"></textarea>
+          </label>
+          <label class="editor-field">
+            <span>Inizio frase 1 (ms)</span>
+            <input id="editorSpeechStart1" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Fine frase 1 (ms)</span>
+            <input id="editorSpeechEnd1" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Frase 2</span>
+            <textarea id="editorSpeechText2" rows="3"></textarea>
+          </label>
+          <label class="editor-field">
+            <span>Inizio frase 2 (ms)</span>
+            <input id="editorSpeechStart2" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Fine frase 2 (ms)</span>
+            <input id="editorSpeechEnd2" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Frase 3</span>
+            <textarea id="editorSpeechText3" rows="3"></textarea>
+          </label>
+          <label class="editor-field">
+            <span>Inizio frase 3 (ms)</span>
+            <input id="editorSpeechStart3" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Fine frase 3 (ms)</span>
+            <input id="editorSpeechEnd3" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Frase 4</span>
+            <textarea id="editorSpeechText4" rows="4"></textarea>
+          </label>
+          <label class="editor-field">
+            <span>Inizio frase 4 (ms)</span>
+            <input id="editorSpeechStart4" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Fine frase 4 (ms)</span>
+            <input id="editorSpeechEnd4" type="number" min="0" max="30000" step="100" />
+          </label>
+          <label class="editor-field">
+            <span>Dimensione label</span>
+            <input id="editorSpeechSize" type="number" min="14" max="42" step="1" />
+          </label>
+          <label class="editor-field">
+            <span>Larghezza label</span>
+            <input id="editorSpeechWidth" type="number" min="220" max="520" step="10" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione orizzontale label</span>
+            <input id="editorSpeechX" type="range" min="20" max="85" step="0.5" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione verticale label</span>
+            <input id="editorSpeechY" type="range" min="10" max="75" step="0.5" />
+          </label>
+          <p class="editor-section-title">Esperienza</p>
+          <label class="editor-field">
+            <span>Larghezza embed</span>
+            <input id="editorEmbedWidth" type="number" min="220" max="520" step="10" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione orizzontale esperienza</span>
+            <input id="editorEmbedX" type="range" min="0" max="100" step="0.5" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione verticale esperienza</span>
+            <input id="editorEmbedY" type="range" min="0" max="80" step="0.5" />
+          </label>
+          <label class="editor-field">
+            <span>Scala esperienza</span>
+            <input id="editorEmbedScale" type="range" min="40" max="100" step="1" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione verticale scopri</span>
+            <input id="editorDiscoverY" type="range" min="20" max="90" step="0.5" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione verticale ricomincia</span>
+            <input id="editorResultY" type="range" min="20" max="80" step="0.5" />
+          </label>
+          <p class="editor-section-title">Avatar</p>
+          <label class="editor-field">
+            <span>Posizione orizzontale avatar</span>
+            <input id="editorAvatarX" type="range" min="-1.5" max="1.5" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione verticale avatar</span>
+            <input id="editorAvatarY" type="range" min="0.4" max="1.8" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Profondita avatar</span>
+            <input id="editorAvatarZ" type="range" min="-1.2" max="1.2" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Scala avatar</span>
+            <input id="editorAvatarScale" type="range" min="0.45" max="1.1" step="0.01" />
+          </label>
+          <p class="editor-section-title">Banco nuvole</p>
+          <label class="editor-field">
+            <span>Posizione verticale nuvole</span>
+            <input id="editorCloudY" type="range" min="-2" max="0.8" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Posizione orizzontale nuvole</span>
+            <input id="editorCloudX" type="range" min="-2" max="2" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Profondita nuvole</span>
+            <input id="editorCloudZ" type="range" min="-1.2" max="2.4" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Scala nuvole</span>
+            <input id="editorCloudScale" type="range" min="0.3" max="1.4" step="0.01" />
+          </label>
+          <p class="editor-section-title">Fondale libri</p>
+          <label class="editor-field">
+            <span>Profondita libri</span>
+            <input id="editorBookDepth" type="range" min="-1.5" max="1.5" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Densita libri</span>
+            <input id="editorBookDensity" type="range" min="0.4" max="1.6" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Scala libri</span>
+            <input id="editorBookScale" type="range" min="0.5" max="2" step="0.01" />
+          </label>
+          <p class="editor-section-title">Luci e ombre</p>
+          <p class="editor-section-title">Atmosfera</p>
+          <label class="editor-field">
+            <span>Top glow</span>
+            <input id="editorTopGlowOpacity" type="range" min="0" max="0.5" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Vignettatura bordi</span>
+            <input id="editorVignetteOpacity" type="range" min="0" max="0.45" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Focus dietro avatar</span>
+            <input id="editorFocusHaloOpacity" type="range" min="0" max="0.4" step="0.01" />
+          </label>
+          <p class="editor-section-title">Luci</p>
+          <label class="editor-field">
+            <span>Luce cielo</span>
+            <input id="editorHemisphereIntensity" type="range" min="0" max="1.6" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Luce ambiente</span>
+            <input id="editorAmbientIntensity" type="range" min="0" max="1.2" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Luce di riempimento</span>
+            <input id="editorFillIntensity" type="range" min="0" max="1.4" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Luce di bordo</span>
+            <input id="editorRimIntensity" type="range" min="0" max="1.4" step="0.01" />
+          </label>
+          <p class="editor-section-title">Ombre</p>
+          <label class="editor-field">
+            <span>Ombra laterale</span>
+            <input id="editorSideShadowOpacity" type="range" min="0" max="0.6" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Direzione ombra laterale</span>
+            <input id="editorSideShadowDirection" type="range" min="-18" max="18" step="1" />
+          </label>
+          <label class="editor-field">
+            <span>Ombra pavimento</span>
+            <input id="editorFloorShadowOpacity" type="range" min="0" max="0.6" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Direzione ombra 3D</span>
+            <input id="editorShadowDepth" type="range" min="-1" max="1.4" step="0.02" />
+          </label>
+          <label class="editor-field">
+            <span>Luce ombre X</span>
+            <input id="editorShadowLightX" type="range" min="-8" max="8" step="0.1" />
+          </label>
+          <label class="editor-field">
+            <span>Luce ombre Z</span>
+            <input id="editorShadowLightZ" type="range" min="-8" max="8" step="0.1" />
+          </label>
+          <label class="editor-field">
+            <span>Luce ombre Y</span>
+            <input id="editorShadowLightY" type="range" min="0" max="10" step="0.1" />
+          </label>
+          <p class="editor-section-title">Sfondo</p>
+          <label class="editor-field">
+            <span>Colore sfondo</span>
+            <input id="editorBgColor" type="color" />
+          </label>
+          <label class="editor-field">
+            <span>Preset gradiente</span>
+            <select id="editorGradientPreset">
+              <option value="clean-white">Clean white</option>
+              <option value="warm-studio">Warm studio</option>
+              <option value="cool-air">Cool air</option>
+              <option value="pearl-depth">Pearl depth</option>
+            </select>
+          </label>
+          <div class="editor-actions">
+            <button id="editorPreviewButton" type="button">Avvia preview</button>
+            <button id="editorResetButton" type="button">Reset flow</button>
+          </div>
+          <div class="editor-actions">
+            <button id="editorResetVisualsButton" type="button">Reset visuals</button>
+          </div>
+        </aside>
+      </section>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
