@@ -1673,6 +1673,41 @@ function isAllowedExternalOrigin(origin) {
   }
 }
 
+function extractMessageType(data) {
+  const candidates = [
+    typeof data === "string" ? data : null,
+    data?.type,
+    data?.event,
+    data?.name,
+    data?.action,
+    data?.status,
+    data?.payload?.type,
+    data?.payload?.event,
+    data?.payload?.name,
+    data?.payload?.action,
+    data?.data?.type,
+    data?.data?.event,
+  ];
+
+  const found = candidates.find((value) => typeof value === "string" && value.trim());
+  return found ? found.trim().toLowerCase() : "";
+}
+
+function looksLikeFinalResultPayload(data) {
+  return Boolean(
+    data?.result
+    || data?.book
+    || data?.bookId
+    || data?.bookTitle
+    || data?.recommendation
+    || data?.payload?.result
+    || data?.payload?.book
+    || data?.payload?.bookId
+    || data?.payload?.bookTitle
+    || data?.payload?.recommendation
+  );
+}
+
 function applyExternalExperienceConfig(nextConfig = {}) {
   EXPERIENCE_CONFIG.externalExperience = {
     ...EXPERIENCE_CONFIG.externalExperience,
@@ -2119,19 +2154,19 @@ function bindEditor() {
   });
 
   window.addEventListener("message", (event) => {
+    const messageType = extractMessageType(event.data);
+
     console.log("[MUSA] postMessage received", {
       origin: event.origin,
       data: event.data,
       mode: currentMode,
+      messageType,
     });
 
     if (!isAllowedExternalOrigin(event.origin)) {
       logExperience("postMessageIgnored", { origin: event.origin });
       return;
     }
-
-    const messageType =
-      typeof event.data === "string" ? event.data : event.data?.type;
 
     if (
       messageType === "musa-submit-start"
@@ -2149,7 +2184,14 @@ function bindEditor() {
       triggerPonderPhase();
     }
 
-    if (messageType === "musa-final-result" || messageType === "final-result") {
+    if (
+      messageType === "musa-final-result"
+      || messageType === "final-result"
+      || messageType === "result"
+      || messageType === "result-ready"
+      || messageType === "recommendation-ready"
+      || looksLikeFinalResultPayload(event.data)
+    ) {
       logExperience("postMessage:final-result", { payload: event.data });
       logGameConsoleBanner("POST final-result");
       triggerFinalPhase();
