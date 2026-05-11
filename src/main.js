@@ -1483,8 +1483,16 @@ async function triggerPonderPhase() {
   );
 
   queueTimeout(() => {
-    logExperience("ponderTimeoutFallback");
-    triggerFinalPhase();
+    logExperience("ponderTimeoutFallback", {
+      timeoutMs: Math.max(ponderMinDuration, EXPERIENCE_CONFIG.timings.finalResultTimeoutMs),
+    });
+    logGameConsoleBanner("FALLBACK final-result mancante");
+    speechLabel.textContent = "Callback finale non ricevuta.\nUso fallback.";
+    speechStage.classList.add("thinking-mode");
+    showSpeech();
+    queueTimeout(() => {
+      triggerFinalPhase();
+    }, 900);
   }, Math.max(ponderMinDuration, EXPERIENCE_CONFIG.timings.finalResultTimeoutMs));
 }
 
@@ -1671,6 +1679,22 @@ function isAllowedExternalOrigin(origin) {
   } catch (_error) {
     return false;
   }
+}
+
+function getMessageDebugSummary(data) {
+  const topLevelKeys = data && typeof data === "object" ? Object.keys(data) : [];
+  const payloadKeys = data?.payload && typeof data.payload === "object"
+    ? Object.keys(data.payload)
+    : [];
+  const nestedDataKeys = data?.data && typeof data.data === "object"
+    ? Object.keys(data.data)
+    : [];
+
+  return {
+    topLevelKeys,
+    payloadKeys,
+    nestedDataKeys,
+  };
 }
 
 function extractMessageType(data) {
@@ -2155,16 +2179,24 @@ function bindEditor() {
 
   window.addEventListener("message", (event) => {
     const messageType = extractMessageType(event.data);
+    const debugSummary = getMessageDebugSummary(event.data);
 
     console.log("[MUSA] postMessage received", {
       origin: event.origin,
       data: event.data,
       mode: currentMode,
       messageType,
+      expectedOrigin: EXPERIENCE_CONFIG.externalExperience.allowOrigin,
+      hostPage: window.location.href,
+      ...debugSummary,
     });
 
     if (!isAllowedExternalOrigin(event.origin)) {
-      logExperience("postMessageIgnored", { origin: event.origin });
+      logExperience("postMessageIgnored", {
+        origin: event.origin,
+        expectedOrigin: EXPERIENCE_CONFIG.externalExperience.allowOrigin,
+        ...debugSummary,
+      });
       return;
     }
 
