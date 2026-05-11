@@ -119,6 +119,7 @@ const EXPERIENCE_CONFIG = {
     embedHoldMs: 1500,
     ponderMinMs: 1200,
     finalRevealDelayMs: 400,
+    finalResultTimeoutMs: 10000,
   },
   externalExperience: {
     enabled: true,
@@ -1474,16 +1475,17 @@ async function triggerPonderPhase() {
   speechLabel.textContent = "Sto pensando!";
   speechStage.classList.add("thinking-mode");
   showSpeech();
-  await setAvatarPhase("ponder", { loop: false });
+  await setAvatarPhase("ponder", { loop: true });
 
-  const ponderDuration = Math.max(
+  const ponderMinDuration = Math.max(
     EXPERIENCE_CONFIG.timings.ponderMinMs,
     getAnimationDurationMs("ponder")
   );
 
   queueTimeout(() => {
+    logExperience("ponderTimeoutFallback");
     triggerFinalPhase();
-  }, ponderDuration);
+  }, Math.max(ponderMinDuration, EXPERIENCE_CONFIG.timings.finalResultTimeoutMs));
 }
 
 async function triggerFinalPhase() {
