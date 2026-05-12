@@ -195,6 +195,7 @@ const EXPERIENCE_CONFIG = {
   },
   visuals: {
     visualMode: "normal",
+    cameraFov: 35,
     backgroundColor: "#ffffff",
     gradientPreset: "clean-white",
     sideShadowOpacity: 0.14,
@@ -1212,6 +1213,7 @@ function applyTotemDepthPreset() {
   EXPERIENCE_CONFIG.visuals = {
     ...EXPERIENCE_CONFIG.visuals,
     visualMode: "normal",
+    cameraFov: 42,
     gradientPreset: "clean-white",
     topGlowOpacity: 0,
     vignetteOpacity: 0,
@@ -1227,24 +1229,24 @@ function applyTotemDepthPreset() {
     fillIntensity: 0.34,
     rimIntensity: 0.86,
     backgroundLayerY: 1.1,
-    backgroundLayerZ: -1.65,
+    backgroundLayerZ: -2.05,
     bookDepth: -0.28,
     bookDensity: 1.08,
-    bookScale: 0.94,
+    bookScale: 0.88,
     logoY: -0.18,
-    logoZ: 1.68,
-    logoScale: 1.62,
+    logoZ: 1.86,
+    logoScale: 1.7,
   };
 
   Object.values(EXPERIENCE_CONFIG.sceneLayouts).forEach((layout) => {
     layout.avatarX = 0;
     layout.avatarY = 1.08;
-    layout.avatarZ = -0.08;
+    layout.avatarZ = -0.18;
     layout.avatarScale = 0.68;
     layout.cloudMaskX = 0;
     layout.cloudMaskY = -0.56;
-    layout.cloudMaskZ = 1.34;
-    layout.cloudMaskScale = 1.04;
+    layout.cloudMaskZ = 1.56;
+    layout.cloudMaskScale = 1.08;
   });
 
   applyExperienceConfig();
@@ -2527,6 +2529,8 @@ function applyVisualConfig() {
   applySceneLayoutStyles();
   const visualMode = EXPERIENCE_CONFIG.visuals.visualMode || "normal";
   document.body.classList.toggle("visual-hologram", visualMode === "hologram");
+  camera.fov = EXPERIENCE_CONFIG.visuals.cameraFov || 35;
+  camera.updateProjectionMatrix();
   const palette = getGradientPalette(
     EXPERIENCE_CONFIG.visuals.gradientPreset,
     EXPERIENCE_CONFIG.visuals.backgroundColor
