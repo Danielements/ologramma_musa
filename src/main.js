@@ -14,6 +14,7 @@ const resultActions = document.querySelector("#resultActions");
 const restartButton = document.querySelector("#restartButton");
 const closeButton = document.querySelector("#closeButton");
 const editorToggle = document.querySelector("#editorToggle");
+const editorPanel = document.querySelector("#editorPanel");
 const editorSceneTarget = document.querySelector("#editorSceneTarget");
 const editorCtaText = document.querySelector("#editorCtaText");
 const editorVisualMode = document.querySelector("#editorVisualMode");
@@ -74,8 +75,11 @@ const editorPreviewButton = document.querySelector("#editorPreviewButton");
 const editorResetButton = document.querySelector("#editorResetButton");
 const editorResetVisualsButton = document.querySelector("#editorResetVisualsButton");
 const editorTotemDepthPresetButton = document.querySelector("#editorTotemDepthPresetButton");
+const editorUndoButton = document.querySelector("#editorUndoButton");
 const STORAGE_KEY = "musa-ologramma-config";
+const STORAGE_HISTORY_KEY = "musa-ologramma-history";
 const editorRangeInputs = [];
+const configHistory = [];
 let runtimeExternalToken = "zLjsEAL6nbf7exMhkzeq1ocSKJj1";
 const PERFORMANCE_PROFILES = {
   high: {
@@ -465,6 +469,7 @@ let ponderStartedAt = 0;
 let explanationAudioEndedHandler = null;
 let animationElapsedTime = 0;
 let lastAnimationTimestamp = 0;
+let suspendHistoryTracking = false;
 let animationMetadata = {
   idle: { durationMs: 6000, name: null },
   speaking: { durationMs: 13000, name: null },
@@ -1372,11 +1377,116 @@ function waitForAudioMetadata(audio, timeoutMs = 4000) {
   });
 }
 
+function cloneConfigState() {
+  return JSON.parse(JSON.stringify({
+    content: EXPERIENCE_CONFIG.content,
+    styles: EXPERIENCE_CONFIG.styles,
+    timings: EXPERIENCE_CONFIG.timings,
+    externalExperience: EXPERIENCE_CONFIG.externalExperience,
+    visuals: EXPERIENCE_CONFIG.visuals,
+    performance: EXPERIENCE_CONFIG.performance,
+    sceneLayouts: EXPERIENCE_CONFIG.sceneLayouts,
+    editorSceneKey,
+  }));
+}
+
+function persistConfigHistory() {
+  try {
+    window.localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(configHistory));
+  } catch (error) {
+    console.error("Errore salvataggio cronologia:", error);
+  }
+}
+
+function pushHistorySnapshot() {
+  const snapshot = cloneConfigState();
+  const lastSnapshot = configHistory[configHistory.length - 1];
+
+  if (lastSnapshot && JSON.stringify(lastSnapshot) === JSON.stringify(snapshot)) {
+    return;
+  }
+
+  configHistory.push(snapshot);
+  while (configHistory.length > 5) {
+    configHistory.shift();
+  }
+  persistConfigHistory();
+  updateUndoButtonState();
+}
+
+function updateUndoButtonState() {
+  if (editorUndoButton) {
+    editorUndoButton.disabled = configHistory.length === 0;
+  }
+}
+
+function applySnapshot(snapshot) {
+  if (!snapshot) {
+    return;
+  }
+
+  suspendHistoryTracking = true;
+  EXPERIENCE_CONFIG.content = {
+    ...EXPERIENCE_CONFIG.content,
+    ...snapshot.content,
+  };
+  EXPERIENCE_CONFIG.content.speechSequence = normalizeSpeechSequence(
+    snapshot.content?.speechSequence || EXPERIENCE_CONFIG.content.speechSequence
+  );
+  EXPERIENCE_CONFIG.styles = {
+    ...EXPERIENCE_CONFIG.styles,
+    ...snapshot.styles,
+  };
+  EXPERIENCE_CONFIG.timings = {
+    ...EXPERIENCE_CONFIG.timings,
+    ...snapshot.timings,
+  };
+  EXPERIENCE_CONFIG.externalExperience = {
+    ...EXPERIENCE_CONFIG.externalExperience,
+    ...snapshot.externalExperience,
+  };
+  EXPERIENCE_CONFIG.visuals = {
+    ...EXPERIENCE_CONFIG.visuals,
+    ...snapshot.visuals,
+  };
+  EXPERIENCE_CONFIG.performance = {
+    ...EXPERIENCE_CONFIG.performance,
+    ...snapshot.performance,
+  };
+
+  for (const key of Object.keys(EXPERIENCE_CONFIG.sceneLayouts)) {
+    EXPERIENCE_CONFIG.sceneLayouts[key] = {
+      ...EXPERIENCE_CONFIG.sceneLayouts[key],
+      ...(snapshot.sceneLayouts?.[key] || {}),
+    };
+  }
+
+  editorSceneKey = snapshot.editorSceneKey || editorSceneKey;
+  applyExperienceConfig();
+  persistExperienceConfig();
+  suspendHistoryTracking = false;
+}
+
+function undoLastChange() {
+  const snapshot = configHistory.pop();
+  persistConfigHistory();
+  updateUndoButtonState();
+  applySnapshot(snapshot);
+}
+
 function hydrateExperienceConfig() {
   try {
     const rawValue = window.localStorage.getItem(STORAGE_KEY);
+    const rawHistory = window.localStorage.getItem(STORAGE_HISTORY_KEY);
 
     if (!rawValue) {
+      if (rawHistory) {
+        const savedHistory = JSON.parse(rawHistory);
+        if (Array.isArray(savedHistory)) {
+          configHistory.splice(0, configHistory.length, ...savedHistory.slice(-5));
+        }
+      }
+      updateUndoButtonState();
       return;
     }
 
@@ -1435,9 +1545,18 @@ function hydrateExperienceConfig() {
         };
       }
     }
+
+    if (rawHistory) {
+      const savedHistory = JSON.parse(rawHistory);
+      if (Array.isArray(savedHistory)) {
+        configHistory.splice(0, configHistory.length, ...savedHistory.slice(-5));
+      }
+    }
   } catch (error) {
     console.error("Errore lettura configurazione salvata:", error);
   }
+
+  updateUndoButtonState();
 }
 
 function persistExperienceConfig() {
@@ -1456,6 +1575,8 @@ function persistExperienceConfig() {
   } catch (error) {
     console.error("Errore salvataggio configurazione:", error);
   }
+
+  updateUndoButtonState();
 }
 
 async function initializeExperience() {
@@ -2046,6 +2167,19 @@ function updateSpeechSequenceEntry(index, patch = {}) {
 }
 
 function bindEditor() {
+  editorPanel?.addEventListener("change", (event) => {
+    if (suspendHistoryTracking) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+
+    pushHistorySnapshot();
+  }, true);
+
   discoverButton.addEventListener("click", () => {
     if (currentMode !== "idle") {
       return;
@@ -2075,6 +2209,7 @@ function bindEditor() {
   });
 
   editorResetVisualsButton.addEventListener("click", () => {
+    pushHistorySnapshot();
     EXPERIENCE_CONFIG.visuals = { ...VISUAL_DEFAULTS };
     EXPERIENCE_CONFIG.sceneLayouts = JSON.parse(JSON.stringify(SCENE_LAYOUT_DEFAULTS));
     EXPERIENCE_CONFIG.performance = { ...DEFAULT_PERFORMANCE_SETTINGS };
@@ -2083,7 +2218,12 @@ function bindEditor() {
   });
 
   editorTotemDepthPresetButton.addEventListener("click", () => {
+    pushHistorySnapshot();
     applyTotemDepthPreset();
+  });
+
+  editorUndoButton.addEventListener("click", () => {
+    undoLastChange();
   });
 
   editorPerformanceMode.addEventListener("change", () => {
