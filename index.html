@@ -17,6 +17,8 @@
       <div class="stage-shell">
       <section class="hero">
         <canvas id="scene"></canvas>
+        <div class="hologram-halo"></div>
+        <div class="hologram-scanlines"></div>
 
         <div class="top-glow"></div>
         <div class="depth-vignette"></div>
@@ -79,6 +81,13 @@
             <span>Testo bottone</span>
             <input id="editorCtaText" type="text" />
           </label>
+          <label class="editor-field">
+            <span>Modalita visuale</span>
+            <select id="editorVisualMode">
+              <option value="normal">Normale</option>
+              <option value="hologram">Ologramma</option>
+            </select>
+          </label>
           <p class="editor-section-title">Tempi</p>
           <label class="editor-field">
             <span>Durata clip parlato (ms)</span>
@@ -98,48 +107,16 @@
             <textarea id="editorSpeechText1" rows="3"></textarea>
           </label>
           <label class="editor-field">
-            <span>Inizio frase 1 (ms)</span>
-            <input id="editorSpeechStart1" type="number" min="0" max="30000" step="100" />
-          </label>
-          <label class="editor-field">
-            <span>Fine frase 1 (ms)</span>
-            <input id="editorSpeechEnd1" type="number" min="0" max="30000" step="100" />
-          </label>
-          <label class="editor-field">
             <span>Frase 2</span>
             <textarea id="editorSpeechText2" rows="3"></textarea>
-          </label>
-          <label class="editor-field">
-            <span>Inizio frase 2 (ms)</span>
-            <input id="editorSpeechStart2" type="number" min="0" max="30000" step="100" />
-          </label>
-          <label class="editor-field">
-            <span>Fine frase 2 (ms)</span>
-            <input id="editorSpeechEnd2" type="number" min="0" max="30000" step="100" />
           </label>
           <label class="editor-field">
             <span>Frase 3</span>
             <textarea id="editorSpeechText3" rows="3"></textarea>
           </label>
           <label class="editor-field">
-            <span>Inizio frase 3 (ms)</span>
-            <input id="editorSpeechStart3" type="number" min="0" max="30000" step="100" />
-          </label>
-          <label class="editor-field">
-            <span>Fine frase 3 (ms)</span>
-            <input id="editorSpeechEnd3" type="number" min="0" max="30000" step="100" />
-          </label>
-          <label class="editor-field">
             <span>Frase 4</span>
             <textarea id="editorSpeechText4" rows="4"></textarea>
-          </label>
-          <label class="editor-field">
-            <span>Inizio frase 4 (ms)</span>
-            <input id="editorSpeechStart4" type="number" min="0" max="30000" step="100" />
-          </label>
-          <label class="editor-field">
-            <span>Fine frase 4 (ms)</span>
-            <input id="editorSpeechEnd4" type="number" min="0" max="30000" step="100" />
           </label>
           <label class="editor-field">
             <span>Dimensione label</span>
@@ -199,6 +176,19 @@
             <span>Scala avatar</span>
             <input id="editorAvatarScale" type="range" min="0.45" max="1.1" step="0.01" />
           </label>
+          <p class="editor-section-title">Logo MUSA</p>
+          <label class="editor-field">
+            <span>Posizione verticale logo</span>
+            <input id="editorLogoY" type="range" min="-1.6" max="0.4" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Profondita logo</span>
+            <input id="editorLogoZ" type="range" min="-0.5" max="2.2" step="0.01" />
+          </label>
+          <label class="editor-field">
+            <span>Scala logo</span>
+            <input id="editorLogoScale" type="range" min="0.3" max="2.2" step="0.01" />
+          </label>
           <p class="editor-section-title">Banco nuvole</p>
           <label class="editor-field">
             <span>Posizione verticale nuvole</span>
@@ -228,6 +218,36 @@
           <label class="editor-field">
             <span>Scala libri</span>
             <input id="editorBookScale" type="range" min="0.5" max="2" step="0.01" />
+          </label>
+          <p class="editor-section-title">Performance</p>
+          <label class="editor-field">
+            <span>Profilo performance</span>
+            <select id="editorPerformanceMode">
+              <option value="high">Alta</option>
+              <option value="medium">Media</option>
+              <option value="low">Bassa</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label class="editor-field">
+            <span>Pixel ratio</span>
+            <input id="editorPerformancePixelRatio" type="range" min="0.6" max="1.5" step="0.05" />
+          </label>
+          <label class="editor-field">
+            <span>FPS scena</span>
+            <input id="editorPerformanceFpsDefault" type="range" min="15" max="60" step="1" />
+          </label>
+          <label class="editor-field">
+            <span>FPS durante gioco</span>
+            <input id="editorPerformanceFpsGame" type="range" min="8" max="30" step="1" />
+          </label>
+          <label class="editor-field">
+            <span>Qualita ombre</span>
+            <input id="editorPerformanceShadowQuality" type="range" min="0" max="3" step="1" />
+          </label>
+          <label class="editor-field editor-field--checkbox">
+            <span>Anima fondale durante gioco</span>
+            <input id="editorPerformanceAnimateGame" type="checkbox" />
           </label>
           <p class="editor-section-title">Luci e ombre</p>
           <p class="editor-section-title">Atmosfera</p>
@@ -309,6 +329,7 @@
           </div>
           <div class="editor-actions">
             <button id="editorResetVisualsButton" type="button">Reset visuals</button>
+            <button id="editorTotemDepthPresetButton" type="button">Preset Totem 60cm</button>
           </div>
         </aside>
       </section>

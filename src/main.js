@@ -16,6 +16,7 @@ const closeButton = document.querySelector("#closeButton");
 const editorToggle = document.querySelector("#editorToggle");
 const editorSceneTarget = document.querySelector("#editorSceneTarget");
 const editorCtaText = document.querySelector("#editorCtaText");
+const editorVisualMode = document.querySelector("#editorVisualMode");
 const editorSpeechText1 = document.querySelector("#editorSpeechText1");
 const editorSpeechText2 = document.querySelector("#editorSpeechText2");
 const editorSpeechText3 = document.querySelector("#editorSpeechText3");
@@ -56,6 +57,12 @@ const editorAvatarZ = document.querySelector("#editorAvatarZ");
 const editorBookDepth = document.querySelector("#editorBookDepth");
 const editorBookDensity = document.querySelector("#editorBookDensity");
 const editorBookScale = document.querySelector("#editorBookScale");
+const editorPerformanceMode = document.querySelector("#editorPerformanceMode");
+const editorPerformancePixelRatio = document.querySelector("#editorPerformancePixelRatio");
+const editorPerformanceFpsDefault = document.querySelector("#editorPerformanceFpsDefault");
+const editorPerformanceFpsGame = document.querySelector("#editorPerformanceFpsGame");
+const editorPerformanceShadowQuality = document.querySelector("#editorPerformanceShadowQuality");
+const editorPerformanceAnimateGame = document.querySelector("#editorPerformanceAnimateGame");
 const editorTopGlowOpacity = document.querySelector("#editorTopGlowOpacity");
 const editorVignetteOpacity = document.querySelector("#editorVignetteOpacity");
 const editorFocusHaloOpacity = document.querySelector("#editorFocusHaloOpacity");
@@ -66,9 +73,42 @@ const editorRimIntensity = document.querySelector("#editorRimIntensity");
 const editorPreviewButton = document.querySelector("#editorPreviewButton");
 const editorResetButton = document.querySelector("#editorResetButton");
 const editorResetVisualsButton = document.querySelector("#editorResetVisualsButton");
+const editorTotemDepthPresetButton = document.querySelector("#editorTotemDepthPresetButton");
 const STORAGE_KEY = "musa-ologramma-config";
 const editorRangeInputs = [];
 let runtimeExternalToken = "zLjsEAL6nbf7exMhkzeq1ocSKJj1";
+const PERFORMANCE_PROFILES = {
+  high: {
+    pixelRatio: 1.25,
+    maxFpsDefault: 60,
+    maxFpsDuringGame: 24,
+    shadowQuality: 3,
+    animateBackgroundDuringGame: true,
+  },
+  medium: {
+    pixelRatio: 1,
+    maxFpsDefault: 45,
+    maxFpsDuringGame: 18,
+    shadowQuality: 2,
+    animateBackgroundDuringGame: false,
+  },
+  low: {
+    pixelRatio: 0.85,
+    maxFpsDefault: 30,
+    maxFpsDuringGame: 12,
+    shadowQuality: 1,
+    animateBackgroundDuringGame: false,
+  },
+};
+const SHADOW_QUALITY_MAP = [0, 512, 1024, 2048];
+const DEFAULT_PERFORMANCE_SETTINGS = {
+  mode: "medium",
+  pixelRatio: PERFORMANCE_PROFILES.medium.pixelRatio,
+  maxFpsDefault: PERFORMANCE_PROFILES.medium.maxFpsDefault,
+  maxFpsDuringGame: PERFORMANCE_PROFILES.medium.maxFpsDuringGame,
+  shadowQuality: PERFORMANCE_PROFILES.medium.shadowQuality,
+  animateBackgroundDuringGame: PERFORMANCE_PROFILES.medium.animateBackgroundDuringGame,
+};
 const DEFAULT_SPEECH_SEQUENCE = [
   {
     text: `Parto sempre da una domanda.
@@ -154,6 +194,7 @@ const EXPERIENCE_CONFIG = {
     embedWidth: 320,
   },
   visuals: {
+    visualMode: "normal",
     backgroundColor: "#ffffff",
     gradientPreset: "clean-white",
     sideShadowOpacity: 0.14,
@@ -163,6 +204,8 @@ const EXPERIENCE_CONFIG = {
     shadowLightX: 4.5,
     shadowLightY: 5.7,
     shadowLightZ: 4.8,
+    backgroundLayerY: 0.8,
+    backgroundLayerZ: -1.15,
     bookDepth: 0,
     bookDensity: 1,
     bookScale: 1,
@@ -176,6 +219,9 @@ const EXPERIENCE_CONFIG = {
     ambientIntensity: 0.32,
     fillIntensity: 0.52,
     rimIntensity: 0.38,
+  },
+  performance: {
+    ...DEFAULT_PERFORMANCE_SETTINGS,
   },
   sceneLayouts: {
     idle: {
@@ -272,7 +318,7 @@ const CLOUD_MASK_DEFAULT_Y = -0.62;
 const CLOUD_MASK_DEFAULT_Z = 1.05;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xffffff);
+scene.background = null;
 scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(
@@ -286,7 +332,8 @@ camera.position.set(0, 1.45, 4.8);
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
-  alpha: false,
+  alpha: true,
+  powerPreference: "high-performance",
 });
 
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -294,6 +341,18 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000, 0);
+
+function getPerformanceSettings() {
+  const performance = EXPERIENCE_CONFIG.performance || DEFAULT_PERFORMANCE_SETTINGS;
+  if (performance.mode && performance.mode !== "custom" && PERFORMANCE_PROFILES[performance.mode]) {
+    return {
+      mode: performance.mode,
+      ...PERFORMANCE_PROFILES[performance.mode],
+    };
+  }
+  return performance;
+}
 
 function resizeStage() {
   const stageWidth = heroStage?.clientWidth || window.innerWidth;
@@ -302,7 +361,7 @@ function resizeStage() {
   camera.aspect = stageWidth / stageHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(stageWidth, stageHeight, false);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(getPerformanceSettings().pixelRatio);
 }
 
 resizeStage();
@@ -316,7 +375,10 @@ scene.add(ambientLight);
 const keyLight = new THREE.DirectionalLight(0xffffff, 2.55);
 keyLight.position.set(4.5, 5.7, 4.8);
 keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.mapSize.set(
+  SHADOW_QUALITY_MAP[getPerformanceSettings().shadowQuality] || 1024,
+  SHADOW_QUALITY_MAP[getPerformanceSettings().shadowQuality] || 1024
+);
 keyLight.shadow.camera.near = 0.5;
 keyLight.shadow.camera.far = 18;
 keyLight.shadow.camera.left = -3.5;
@@ -357,17 +419,6 @@ pedestal.receiveShadow = true;
 pedestal.castShadow = true;
 scene.add(pedestal);
 
-const backdrop = new THREE.Mesh(
-  new THREE.PlaneGeometry(10, 8),
-  new THREE.ShadowMaterial({
-    color: 0x8a816e,
-    opacity: 0.16,
-  })
-);
-backdrop.position.set(0, 1.5, -5.5);
-backdrop.receiveShadow = true;
-scene.add(backdrop);
-
 const contactShadow = new THREE.Mesh(
   new THREE.PlaneGeometry(2.8, 2.8),
   new THREE.MeshBasicMaterial({
@@ -396,7 +447,6 @@ scene.add(propsOrbit);
 
 const loader = new GLTFLoader();
 const avatarAssetCache = new Map();
-const clock = new THREE.Clock();
 
 let mixer = null;
 let activeAction = null;
@@ -412,6 +462,8 @@ let activeAvatarBaseScale = 1;
 let editorSceneKey = "idle";
 let ponderStartedAt = 0;
 let explanationAudioEndedHandler = null;
+let animationElapsedTime = 0;
+let lastAnimationTimestamp = 0;
 let animationMetadata = {
   idle: { durationMs: 6000, name: null },
   speaking: { durationMs: 13000, name: null },
@@ -725,39 +777,69 @@ window.addEventListener("resize", () => {
   resizeStage();
 });
 
-function animate() {
+function getTargetFps() {
+  const performance = getPerformanceSettings();
+  return currentMode === "game"
+    ? performance.maxFpsDuringGame
+    : performance.maxFpsDefault;
+}
+
+function animate(timestamp = 0) {
   requestAnimationFrame(animate);
 
-  const delta = clock.getDelta();
+  if (!lastAnimationTimestamp) {
+    lastAnimationTimestamp = timestamp;
+  }
+
+  const minFrameTime = 1000 / getTargetFps();
+  const frameDeltaMs = timestamp - lastAnimationTimestamp;
+
+  if (frameDeltaMs < minFrameTime) {
+    return;
+  }
+
+  const delta = frameDeltaMs / 1000;
+  lastAnimationTimestamp = timestamp;
+  animationElapsedTime += delta;
 
   if (mixer) {
     mixer.update(delta);
   }
 
   const renderedLayout = getRenderedSceneLayout();
-  avatarGroup.rotation.y = Math.sin(clock.elapsedTime * 0.35) * 0.08;
+  const lowPowerGameMode =
+    currentMode === "game" && !getPerformanceSettings().animateBackgroundDuringGame;
+  avatarGroup.rotation.y = Math.sin(animationElapsedTime * 0.35) * 0.08;
   avatarGroup.position.x = renderedLayout.avatarX;
   avatarGroup.position.y =
-    renderedLayout.avatarY + Math.sin(clock.elapsedTime * 0.8) * 0.015;
+    renderedLayout.avatarY + Math.sin(animationElapsedTime * 0.8) * 0.015;
   avatarGroup.position.z = renderedLayout.avatarZ;
-  propsOrbit.rotation.y = Math.sin(clock.elapsedTime * 0.18) * 0.18;
+
+  if (!lowPowerGameMode) {
+    propsOrbit.rotation.y = Math.sin(animationElapsedTime * 0.18) * 0.18;
+  }
 
   for (const child of avatarGroup.children) {
-    child.userData.tick?.(clock.elapsedTime);
+    child.userData.tick?.(animationElapsedTime);
   }
 
   for (const child of maskCloudGroup.children) {
-    child.userData.tick?.(clock.elapsedTime);
+    child.userData.tick?.(animationElapsedTime);
   }
 
-  for (const child of propsOrbit.children) {
-    child.userData.tick?.(clock.elapsedTime);
+  if (!lowPowerGameMode) {
+    for (const child of propsOrbit.children) {
+      child.userData.tick?.(animationElapsedTime);
+    }
   }
 
-  updateBookStorm(clock.elapsedTime);
-  updateAirplanes(clock.elapsedTime);
-  updateThinkingBackdrop(clock.elapsedTime);
-  updateMusaLogo(clock.elapsedTime);
+  if (!lowPowerGameMode) {
+    updateBookStorm(animationElapsedTime);
+    updateAirplanes(animationElapsedTime);
+  }
+
+  updateThinkingBackdrop(animationElapsedTime);
+  updateMusaLogo(animationElapsedTime);
 
   renderer.render(scene, camera);
 }
@@ -1114,6 +1196,98 @@ function syncEditorSceneLayoutControls(sceneKey = editorSceneKey) {
   refreshEditorRangeValues();
 }
 
+function applyPerformanceProfile(mode) {
+  const profile = PERFORMANCE_PROFILES[mode];
+  if (!profile) {
+    return;
+  }
+
+  EXPERIENCE_CONFIG.performance = {
+    mode,
+    ...profile,
+  };
+}
+
+function applyTotemDepthPreset() {
+  EXPERIENCE_CONFIG.visuals = {
+    ...EXPERIENCE_CONFIG.visuals,
+    visualMode: "normal",
+    gradientPreset: "clean-white",
+    topGlowOpacity: 0,
+    vignetteOpacity: 0,
+    focusHaloOpacity: 0,
+    sideShadowOpacity: 0.08,
+    floorShadowOpacity: 0.18,
+    contactShadowX: 0.08,
+    shadowLightX: 5.8,
+    shadowLightY: 5.1,
+    shadowLightZ: 4.1,
+    hemisphereIntensity: 0.42,
+    ambientIntensity: 0.2,
+    fillIntensity: 0.34,
+    rimIntensity: 0.86,
+    backgroundLayerY: 1.1,
+    backgroundLayerZ: -1.65,
+    bookDepth: -0.28,
+    bookDensity: 1.08,
+    bookScale: 0.94,
+    logoY: -0.18,
+    logoZ: 1.68,
+    logoScale: 1.62,
+  };
+
+  Object.values(EXPERIENCE_CONFIG.sceneLayouts).forEach((layout) => {
+    layout.avatarX = 0;
+    layout.avatarY = 1.08;
+    layout.avatarZ = -0.08;
+    layout.avatarScale = 0.68;
+    layout.cloudMaskX = 0;
+    layout.cloudMaskY = -0.56;
+    layout.cloudMaskZ = 1.34;
+    layout.cloudMaskScale = 1.04;
+  });
+
+  applyExperienceConfig();
+  persistExperienceConfig();
+}
+
+function applyPerformanceConfig() {
+  const performance = getPerformanceSettings();
+  const pixelRatio = Math.max(0.6, Math.min(1.5, performance.pixelRatio || 1));
+  const shadowQualityIndex = Math.max(0, Math.min(3, Math.round(performance.shadowQuality ?? 2)));
+  const shadowMapSize = SHADOW_QUALITY_MAP[shadowQualityIndex];
+
+  renderer.setPixelRatio(pixelRatio);
+  renderer.shadowMap.enabled = shadowMapSize > 0;
+  keyLight.castShadow = shadowMapSize > 0;
+  keyLight.shadow.mapSize.set(shadowMapSize || 1, shadowMapSize || 1);
+  keyLight.shadow.needsUpdate = true;
+
+  if (editorPerformanceMode) {
+    editorPerformanceMode.value = performance.mode || "medium";
+    editorPerformancePixelRatio.value = pixelRatio;
+    editorPerformanceFpsDefault.value = performance.maxFpsDefault;
+    editorPerformanceFpsGame.value = performance.maxFpsDuringGame;
+    editorPerformanceShadowQuality.value = shadowQualityIndex;
+    editorPerformanceAnimateGame.checked = Boolean(performance.animateBackgroundDuringGame);
+
+    const customMode = performance.mode === "custom";
+    [
+      editorPerformancePixelRatio,
+      editorPerformanceFpsDefault,
+      editorPerformanceFpsGame,
+      editorPerformanceShadowQuality,
+      editorPerformanceAnimateGame,
+    ].forEach((control) => {
+      if (control) {
+        control.disabled = !customMode;
+      }
+    });
+  }
+
+  refreshEditorRangeValues();
+}
+
 function initializeEditorRangeValues() {
   const rangeInputs = document.querySelectorAll('.editor-panel input[type="range"]');
 
@@ -1172,6 +1346,30 @@ function refreshEditorRangeValues() {
   });
 }
 
+function waitForAudioMetadata(audio, timeoutMs = 4000) {
+  if (Number.isFinite(audio.duration) && audio.duration > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      audio.removeEventListener("loadedmetadata", finish);
+      audio.removeEventListener("canplaythrough", finish);
+      resolve();
+    };
+
+    audio.addEventListener("loadedmetadata", finish, { once: true });
+    audio.addEventListener("canplaythrough", finish, { once: true });
+    window.setTimeout(finish, timeoutMs);
+  });
+}
+
 function hydrateExperienceConfig() {
   try {
     const rawValue = window.localStorage.getItem(STORAGE_KEY);
@@ -1220,6 +1418,13 @@ function hydrateExperienceConfig() {
       };
     }
 
+    if (savedConfig.performance) {
+      EXPERIENCE_CONFIG.performance = {
+        ...EXPERIENCE_CONFIG.performance,
+        ...savedConfig.performance,
+      };
+    }
+
     if (savedConfig.sceneLayouts) {
       for (const key of Object.keys(EXPERIENCE_CONFIG.sceneLayouts)) {
         EXPERIENCE_CONFIG.sceneLayouts[key] = {
@@ -1241,6 +1446,7 @@ function persistExperienceConfig() {
       timings: EXPERIENCE_CONFIG.timings,
       externalExperience: EXPERIENCE_CONFIG.externalExperience,
       visuals: EXPERIENCE_CONFIG.visuals,
+      performance: EXPERIENCE_CONFIG.performance,
       sceneLayouts: EXPERIENCE_CONFIG.sceneLayouts,
     };
 
@@ -1253,13 +1459,30 @@ function persistExperienceConfig() {
 async function initializeExperience() {
   await resetExperience();
   applyExperienceConfig();
-  refreshAnimationMetadata()
+  preloadExperienceAssets()
     .then(() => {
       applyExperienceConfig();
     })
     .catch((error) => {
-      console.error("Errore preload metadati animazioni:", error);
+      console.error("Errore preload esperienza:", error);
     });
+}
+
+async function preloadExperienceAssets() {
+  const avatarPreloads = Object.values(EXPERIENCE_CONFIG.animationSources).map((source) =>
+    loadAvatarAsset(source.path)
+  );
+  const audioPreloads = [
+    waitForAudioMetadata(explanationAudio),
+    ...speechSegmentAudios.map((audio) => waitForAudioMetadata(audio)),
+  ];
+
+  await Promise.allSettled([...avatarPreloads, ...audioPreloads]);
+  await refreshAnimationMetadata();
+  logExperience("preloadComplete", {
+    explanationDurationMs: getExplanationDurationMs(),
+    segmentDurationsMs: getSpeechSegmentDurationsMs(),
+  });
 }
 
 function loadAvatarAsset(path) {
@@ -1487,9 +1710,6 @@ async function triggerPonderPhase() {
       timeoutMs: Math.max(ponderMinDuration, EXPERIENCE_CONFIG.timings.finalResultTimeoutMs),
     });
     logGameConsoleBanner("FALLBACK final-result mancante");
-    speechLabel.textContent = "Callback finale non ricevuta.\nUso fallback.";
-    speechStage.classList.add("thinking-mode");
-    showSpeech();
     queueTimeout(() => {
       triggerFinalPhase();
     }, 900);
@@ -1767,9 +1987,11 @@ function applyExperienceConfig() {
     `${EXPERIENCE_CONFIG.styles.embedWidth}px`
   );
 
+  applyPerformanceConfig();
   applyVisualConfig();
 
   editorCtaText.value = EXPERIENCE_CONFIG.content.ctaText;
+  editorVisualMode.value = EXPERIENCE_CONFIG.visuals.visualMode || "normal";
   editorSpeechText1.value = speechSequence[0]?.text || "";
   editorSpeechText2.value = speechSequence[1]?.text || "";
   editorSpeechText3.value = speechSequence[2]?.text || "";
@@ -1853,6 +2075,57 @@ function bindEditor() {
   editorResetVisualsButton.addEventListener("click", () => {
     EXPERIENCE_CONFIG.visuals = { ...VISUAL_DEFAULTS };
     EXPERIENCE_CONFIG.sceneLayouts = JSON.parse(JSON.stringify(SCENE_LAYOUT_DEFAULTS));
+    EXPERIENCE_CONFIG.performance = { ...DEFAULT_PERFORMANCE_SETTINGS };
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorTotemDepthPresetButton.addEventListener("click", () => {
+    applyTotemDepthPreset();
+  });
+
+  editorPerformanceMode.addEventListener("change", () => {
+    const selectedMode = editorPerformanceMode.value;
+    if (selectedMode === "custom") {
+      EXPERIENCE_CONFIG.performance.mode = "custom";
+    } else {
+      applyPerformanceProfile(selectedMode);
+    }
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorPerformancePixelRatio.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.performance.mode = "custom";
+    EXPERIENCE_CONFIG.performance.pixelRatio = Number(editorPerformancePixelRatio.value) || 1;
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorPerformanceFpsDefault.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.performance.mode = "custom";
+    EXPERIENCE_CONFIG.performance.maxFpsDefault = Number(editorPerformanceFpsDefault.value) || 45;
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorPerformanceFpsGame.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.performance.mode = "custom";
+    EXPERIENCE_CONFIG.performance.maxFpsDuringGame = Number(editorPerformanceFpsGame.value) || 18;
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorPerformanceShadowQuality.addEventListener("input", () => {
+    EXPERIENCE_CONFIG.performance.mode = "custom";
+    EXPERIENCE_CONFIG.performance.shadowQuality = Number(editorPerformanceShadowQuality.value) || 0;
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorPerformanceAnimateGame.addEventListener("change", () => {
+    EXPERIENCE_CONFIG.performance.mode = "custom";
+    EXPERIENCE_CONFIG.performance.animateBackgroundDuringGame = editorPerformanceAnimateGame.checked;
     applyExperienceConfig();
     persistExperienceConfig();
   });
@@ -1869,6 +2142,12 @@ function bindEditor() {
 
   editorCtaText.addEventListener("input", () => {
     EXPERIENCE_CONFIG.content.ctaText = editorCtaText.value;
+    applyExperienceConfig();
+    persistExperienceConfig();
+  });
+
+  editorVisualMode.addEventListener("change", () => {
+    EXPERIENCE_CONFIG.visuals.visualMode = editorVisualMode.value;
     applyExperienceConfig();
     persistExperienceConfig();
   });
@@ -2246,6 +2525,8 @@ function bindEditor() {
 
 function applyVisualConfig() {
   applySceneLayoutStyles();
+  const visualMode = EXPERIENCE_CONFIG.visuals.visualMode || "normal";
+  document.body.classList.toggle("visual-hologram", visualMode === "hologram");
   const palette = getGradientPalette(
     EXPERIENCE_CONFIG.visuals.gradientPreset,
     EXPERIENCE_CONFIG.visuals.backgroundColor
@@ -2281,18 +2562,38 @@ function applyVisualConfig() {
     `${EXPERIENCE_CONFIG.visuals.sideShadowShift}px`
   );
 
-  const bgColor = new THREE.Color(EXPERIENCE_CONFIG.visuals.backgroundColor);
-  scene.background = bgColor;
   contactShadow.position.x = EXPERIENCE_CONFIG.visuals.contactShadowX;
   contactShadow.position.z = 0.48 + getRenderedSceneLayout().avatarZ * 0.15;
   keyLight.position.x = EXPERIENCE_CONFIG.visuals.shadowLightX;
   keyLight.position.y = EXPERIENCE_CONFIG.visuals.shadowLightY;
   keyLight.position.z = EXPERIENCE_CONFIG.visuals.shadowLightZ;
+  propsOrbit.position.y = EXPERIENCE_CONFIG.visuals.backgroundLayerY;
+  propsOrbit.position.z = EXPERIENCE_CONFIG.visuals.backgroundLayerZ;
   hemisphereLight.intensity = EXPERIENCE_CONFIG.visuals.hemisphereIntensity;
   ambientLight.intensity = EXPERIENCE_CONFIG.visuals.ambientIntensity;
   fillLight.intensity = EXPERIENCE_CONFIG.visuals.fillIntensity;
   rimLight.intensity = EXPERIENCE_CONFIG.visuals.rimIntensity;
   keyLight.intensity = 2.15;
+
+  if (visualMode === "hologram") {
+    hemisphereLight.intensity *= 0.45;
+    ambientLight.intensity *= 0.68;
+    fillLight.intensity *= 0.78;
+    rimLight.intensity = Math.max(rimLight.intensity * 2.1, 0.9);
+    rimLight.color.set("#7fdcff");
+    fillLight.color.set("#bdefff");
+    keyLight.color.set("#dffcff");
+    keyLight.intensity = 1.55;
+    contactShadow.material.opacity = 0.16;
+    renderer.toneMappingExposure = 1.12;
+  } else {
+    rimLight.color.set("#d8e0ff");
+    fillLight.color.set("#eee5d8");
+    keyLight.color.set("#ffffff");
+    contactShadow.material.opacity = 0.38;
+    renderer.toneMappingExposure = 1.05;
+  }
+
   applyAvatarVisualOverrides(activeAvatarModel);
   applyCloudMaskVisuals();
   applyBookVisuals();
@@ -2375,7 +2676,6 @@ function updateThinkingBackdrop(elapsedTime) {
   document.documentElement.style.setProperty("--bg-accent", colorToRgba(accent, 0.28));
   document.documentElement.style.setProperty("--bg-secondary", colorToRgba(secondary, 0.3));
   document.documentElement.style.setProperty("--bg-glow", colorToRgba(glow, 0.96));
-  scene.background = solid;
 }
 
 function applyAvatarVisualOverrides(targetModel) {
