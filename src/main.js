@@ -32,6 +32,7 @@ const editorEmbedX = document.querySelector("#editorEmbedX");
 const editorEmbedY = document.querySelector("#editorEmbedY");
 const editorEmbedScale = document.querySelector("#editorEmbedScale");
 const editorDiscoverY = document.querySelector("#editorDiscoverY");
+const editorDiscoverScale = document.querySelector("#editorDiscoverScale");
 const editorResultY = document.querySelector("#editorResultY");
 const editorSpeechX = document.querySelector("#editorSpeechX");
 const editorSpeechY = document.querySelector("#editorSpeechY");
@@ -233,6 +234,7 @@ const EXPERIENCE_CONFIG = {
       embedX: 50,
       embedScale: 50,
       discoverButtonY: 70,
+      discoverButtonScale: 1,
       resultActionsY: 56,
       speechX: 68,
       speechY: 45,
@@ -250,6 +252,7 @@ const EXPERIENCE_CONFIG = {
       embedX: 50,
       embedScale: 50,
       discoverButtonY: 70,
+      discoverButtonScale: 1,
       resultActionsY: 56,
       speechX: 68,
       speechY: 45,
@@ -267,6 +270,7 @@ const EXPERIENCE_CONFIG = {
       embedX: 50,
       embedScale: 55,
       discoverButtonY: 70,
+      discoverButtonScale: 1,
       resultActionsY: 56,
       speechX: 68,
       speechY: 45,
@@ -284,6 +288,7 @@ const EXPERIENCE_CONFIG = {
       embedX: 50,
       embedScale: 50,
       discoverButtonY: 70,
+      discoverButtonScale: 1,
       resultActionsY: 56,
       speechX: 68,
       speechY: 45,
@@ -301,6 +306,7 @@ const EXPERIENCE_CONFIG = {
       embedX: 50,
       embedScale: 50,
       discoverButtonY: 70,
+      discoverButtonScale: 1,
       resultActionsY: 56,
       speechX: 68,
       speechY: 45,
@@ -1169,6 +1175,7 @@ function applySceneLayoutStyles(sceneKey = getRenderedSceneKey()) {
   document.documentElement.style.setProperty("--embed-top", String(activeLayout.embedY));
   document.documentElement.style.setProperty("--embed-scale", String(activeLayout.embedScale || 50));
   document.documentElement.style.setProperty("--discover-button-top", `${activeLayout.discoverButtonY || 70}%`);
+  document.documentElement.style.setProperty("--discover-button-scale", String(activeLayout.discoverButtonScale || 1));
   document.documentElement.style.setProperty("--result-actions-top", `${activeLayout.resultActionsY || 40}%`);
   document.documentElement.style.setProperty("--speech-left", `${activeLayout.speechX || 68}%`);
   document.documentElement.style.setProperty("--speech-top", `${activeLayout.speechY || 45}%`);
@@ -1188,6 +1195,7 @@ function syncEditorSceneLayoutControls(sceneKey = editorSceneKey) {
   editorEmbedY.value = editorLayout.embedY;
   editorEmbedScale.value = editorLayout.embedScale;
   editorDiscoverY.value = editorLayout.discoverButtonY;
+  editorDiscoverScale.value = editorLayout.discoverButtonScale || 1;
   editorResultY.value = editorLayout.resultActionsY;
   editorSpeechX.value = editorLayout.speechX;
   editorSpeechY.value = editorLayout.speechY;
@@ -2369,6 +2377,13 @@ function bindEditor() {
 
   editorDiscoverY.addEventListener("input", () => {
     getSceneLayout(editorSceneKey).discoverButtonY = Number(editorDiscoverY.value) || 70;
+    applySceneLayoutStyles();
+    refreshEditorRangeValues();
+    persistExperienceConfig();
+  });
+
+  editorDiscoverScale.addEventListener("input", () => {
+    getSceneLayout(editorSceneKey).discoverButtonScale = Number(editorDiscoverScale.value) || 1;
     applySceneLayoutStyles();
     refreshEditorRangeValues();
     persistExperienceConfig();

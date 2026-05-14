@@ -14,6 +14,7 @@
   --embed-top: 50;
   --embed-scale: 50;
   --discover-button-top: 70%;
+  --discover-button-scale: 1;
   --result-actions-top: 40%;
   --bg-solid: #ffffff;
   --bg-accent: rgba(198, 208, 216, 0.1);
@@ -200,7 +201,8 @@ body.game-active #scene {
   position: absolute;
   left: 50%;
   top: var(--discover-button-top);
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--discover-button-scale));
+  transform-origin: center center;
   min-width: min(92%, 560px);
   padding: 24px 38px;
   border: 0;
@@ -220,7 +222,7 @@ body.game-active #scene {
 }
 
 .discover-button:hover {
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateX(-50%) translateY(-2px) scale(var(--discover-button-scale));
   background: linear-gradient(180deg, #ff9b4f 0%, #f0622d 100%);
 }
 
